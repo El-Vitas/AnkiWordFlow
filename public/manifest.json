@@ -1,0 +1,18 @@
+{
+    "manifest_version": 3,
+    "name": "Anki Word Flow",
+    "version": "0.1.0",
+    "description": "A Chrome extension to enhance Anki with word flow features.",
+    "action": {
+        "default_popup": "index.html"
+    },
+    "options_page": "options.html",
+    "permissions": [
+        "scripting",
+        "storage"
+    ],
+    "host_permissions": [
+        "http://*/*",
+        "https://*/*"
+    ]
+}
