@@ -1,19 +1,26 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { resolve } from 'path'
-
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
   ],
-  build: {
+build: {
+    outDir: 'dist',
     rollupOptions: {
       input: {
-        main: resolve('index.html'),
-        options: resolve('options.html'),
+        main: 'index.html',
+        options: 'options.html',
+        tooltip: 'tooltip.html',
+        content: 'src/content.ts',
+        background: 'src/background.ts',
+      },
+      output: {
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]',
       },
     },
   },
-})
+});
