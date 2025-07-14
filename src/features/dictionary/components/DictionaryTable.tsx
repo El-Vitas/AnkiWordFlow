@@ -1,5 +1,11 @@
+import React from 'react';
 import { Toggle } from '../../../common/components/Toggle';
 import { useStorage } from '../../../hooks/useStorage';
+
+// 👇 1. Definimos la interfaz de props
+interface DictionaryTableProps {
+  onSettingsChange: () => void;
+}
 
 const dictionaries = [
     { id: 'dees_larousse', name: 'Alemán -> Español | Larousse' },
@@ -9,33 +15,25 @@ const dictionaries = [
     { id: 'fren_cambridge', name: 'Francés -> Inglés | Cambridge' },
 ];
 
-export function DictionaryTable() {
-	const { settings, updateSetting, isLoading, error } = useStorage();
+// 👇 2. Usamos la interfaz
+export const DictionaryTable: React.FC<DictionaryTableProps> = ({ onSettingsChange }) => {
+    const { settings, updateSetting, isLoading } = useStorage();
 
-	if (isLoading) {
-		return <div>Cargando...</div>;
-	}
+    if (isLoading) return <div>Cargando diccionarios...</div>;
 
-	if (error) {
-		return <div className="text-red-600">Error: {error}</div>;
-	}
-
-    // Función para manejar el cambio de un solo diccionario
     const handleToggle = (dictionaryId: string, newCheckedState: boolean) => {
-        // Creamos una copia del objeto de diccionarios y actualizamos solo el que cambió
         const newActiveDictionaries = {
             ...settings.activeDictionaries,
             [dictionaryId]: newCheckedState,
         };
-        // Guardamos el objeto completo de vuelta en el storage
         updateSetting('activeDictionaries', newActiveDictionaries);
+        onSettingsChange(); // 3. Notificamos el cambio
     };
 
     return (
         <div className="space-y-3">
             {dictionaries.map(dict => (
                 <div key={dict.id} className="p-3 bg-gray-50 rounded-md border">
-                    {/* El Toggle ahora es controlado por el estado de 'activeDictionaries' */}
                     <Toggle
                         label={dict.name}
                         checked={settings.activeDictionaries[dict.id] ?? false}
@@ -45,4 +43,4 @@ export function DictionaryTable() {
             ))}
         </div>
     );
-}
+};

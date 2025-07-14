@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 body {
-  /* Establecemos un tamaño fijo para el popup de la extensión */
-  font-family: 'Inter', sans-serif; /* Una fuente más limpia si la tienes, si no, usa la de por defecto */
+  font-family: 'Inter', sans-serif;
+}
+
+@keyframes fade-in-out {
+  0%, 100% { opacity: 0; }
+  10%, 90% { opacity: 1; }
+}
+.animate-fade-in-out {
+  animation: fade-in-out 3s ease-in-out;
 }

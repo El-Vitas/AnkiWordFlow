@@ -1,7 +1,7 @@
-// src/views/OptionsView.tsx
+import React from 'react';
 import { OptionsLayout } from '../widgets/OptionsLayout';
 import '../index.css';
 
-export function OptionsView() {
+export const OptionsView: React.FC = () => {
   return <OptionsLayout />;
-}
+};

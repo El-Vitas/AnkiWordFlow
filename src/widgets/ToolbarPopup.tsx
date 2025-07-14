@@ -1,9 +1,9 @@
-// src/widgets/ToolbarPopup.tsx
+import React from 'react';
 import { ActivationControls } from '../features/activation/components/ActivationControls';
 import { DictionarySelector } from '../features/dictionary/components/DictionarySelector';
+import { DeckSelector } from '../features/anki/components/DeckSelector';
 
-// Un ícono de engranaje simple en formato SVG para no necesitar archivos externos
-const SettingsIcon = () => (
+const SettingsIcon: React.FC = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="20"
@@ -20,16 +20,13 @@ const SettingsIcon = () => (
   </svg>
 );
 
-
-export function ToolbarPopup() {
+export const ToolbarPopup: React.FC = () => {
   const openOptionsPage = () => {
-    // Esta función abrirá la página de opciones en una nueva pestaña
     chrome.runtime.openOptionsPage();
   };
 
   return (
     <div className="w-80 p-4 bg-gray-50 font-sans">
-      {/* Header */}
       <header className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <img src="/vite.svg" alt="AnkiWordFlow Logo" className="w-6 h-6" />
@@ -44,16 +41,15 @@ export function ToolbarPopup() {
         </button>
       </header>
 
-      {/* Body */}
       <main className="space-y-4">
         <ActivationControls />
         <DictionarySelector />
+        <DeckSelector />
       </main>
 
-       {/* Footer */}
-       <footer className="text-center mt-4">
-        <p className="text-xs text-gray-400">v0.1.0</p>
-       </footer>
+      <footer className="text-center mt-4">
+        <p className="text-xs text-gray-400">v1.0.0</p>
+      </footer>
     </div>
   );
-}
+};

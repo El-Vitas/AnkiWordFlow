@@ -14,7 +14,7 @@ build: {
         options: 'options.html',
         tooltip: 'tooltip.html',
         content: 'src/content.ts',
-        background: 'src/background.ts',
+        background: 'src/back/background.ts',
       },
       output: {
         entryFileNames: 'assets/[name].js',

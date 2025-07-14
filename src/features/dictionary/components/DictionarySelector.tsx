@@ -1,6 +1,10 @@
-// src/features/dictionary/components/DictionarySelector.tsx
+import React from 'react';
 import { Select } from '../../../common/components/Select';
-import { useStorage } from '../../../hooks/useStorage'; // 👈 1. Importa el hook
+import { useStorage } from '../../../hooks/useStorage';
+
+interface DictionarySelectorProps {
+  onSettingsChange?: () => void;
+}
 
 const dictionaryOptions = [
   { value: 'enes_cambridge', label: 'Inglés -> Español' },
@@ -8,26 +12,24 @@ const dictionaryOptions = [
   { value: 'fres_larousse', label: 'Francés -> Español' },
 ];
 
-export function DictionarySelector() {
-	const { settings, updateSetting, isLoading, error } = useStorage();
+export const DictionarySelector: React.FC<DictionarySelectorProps> = ({ onSettingsChange }) => {
+  const { settings, updateSetting, isLoading } = useStorage();
 
-	if (isLoading) {
-		return <div>Cargando...</div>;
-	}
+  if (isLoading) return <div>Cargando...</div>;
 
-	if (error) {
-		return <div className="text-red-600">Error: {error}</div>;
-	}
+  const handleChange = (value: string) => {
+    updateSetting('mainDictionary', value);
+    onSettingsChange?.();
+  };
 
   return (
     <div className="p-4 bg-white rounded-lg border border-gray-200">
-      {/* 3. Pasa 'value' y 'onChange' al componente Select */}
       <Select
         label="Diccionario"
         options={dictionaryOptions}
         value={settings.mainDictionary}
-        onChange={(value) => updateSetting('mainDictionary', value)}
+        onChange={handleChange}
       />
     </div>
   );
-}
+};
