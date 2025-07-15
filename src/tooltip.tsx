@@ -46,15 +46,13 @@ const DictionaryResultCard: React.FC<{ result: DictionaryResult; contextSentence
       note: contextSentence,
       extraInfo: result.partOfSpeech,
       url: `https://dictionary.cambridge.org/dictionary/english-spanish/${result.word}`,
-      picture: richContent, 
+      picture: richContent,
     };
 
-    // 3. Mapeamos los datos a los campos de Anki
     const fields: { [key: string]: string } = {};
     for (const key in mappings) {
       const fieldKey = key as keyof AnkiFieldMappings;
       const ankiFieldName = mappings[fieldKey];
-      
       if (ankiFieldName && Object.prototype.hasOwnProperty.call(availableData, fieldKey)) {
         const value = availableData[fieldKey as keyof typeof availableData];
         if (value) {
@@ -128,6 +126,7 @@ const DictionaryResultCard: React.FC<{ result: DictionaryResult; contextSentence
           ))}
         </div>
       </header>
+      
       <main className="flex flex-col gap-2">
         {result.definitions.map((def, index) => (
           <div key={index}>
@@ -141,7 +140,15 @@ const DictionaryResultCard: React.FC<{ result: DictionaryResult; contextSentence
           </div>
         ))}
       </main>
-      <footer className="mt-2 pt-3 border-t border-gray-200">
+
+      <div className="mt-2 pt-3 border-t border-gray-100">
+        <p className="text-xs font-bold text-gray-500 uppercase mb-1">Contexto</p>
+        <p className="text-sm italic text-gray-600 bg-gray-50 p-2 rounded-md" title={contextSentence}>
+          {contextSentence.length > 200 ? `${contextSentence.substring(0, 200)}…` : contextSentence}
+        </p>
+      </div>
+
+      <footer className="mt-2">
         <button onClick={handleAddNote} disabled={isAdding || isLoadingSettings} className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400">
           {isAdding ? 'Añadiendo...' : 'Añadir a Anki'}
         </button>

@@ -2,8 +2,10 @@ import { CambridgeDictionary } from './lib/dictionaries/cambridge';
 import type { ScraperResponse } from './types/tooltip';
 import type { ExtensionSettings } from './types/storage';
 
-let iframe: HTMLIFrameElement | null = null;
+const TOOLTIP_CLASS_NAME = 'ankiwordflow-tooltip-iframe';
 let dataForTooltip: { results: ScraperResponse; contextSentence: string } | null = null;
+let lastMousePosition = { x: 0, y: 0 };
+let isProcessing = false; 
 
 const defaultSettings: ExtensionSettings = {
   isExtensionActive: true,
@@ -29,12 +31,9 @@ const defaultSettings: ExtensionSettings = {
   ankiAllowDuplicates: false,
 };
 
-const removeTooltip = (): void => {
-  if (iframe) {
-    iframe.remove();
-    iframe = null;
-    dataForTooltip = null;
-  }
+const removeAllTooltips = (): void => {
+  document.querySelectorAll(`.${TOOLTIP_CLASS_NAME}`).forEach(node => node.remove());
+  dataForTooltip = null;
 };
 
 const getContextSentence = (selection: Selection): string => {
@@ -43,7 +42,7 @@ const getContextSentence = (selection: Selection): string => {
   while (node && node.nodeName !== 'BODY') {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const display = window.getComputedStyle(node as Element).display;
-      if (['block', 'list-item', 'table-cell'].includes(display)) {
+      if (['block', 'list-item', 'table-cell', 'p'].includes(display)) {
         return node.textContent?.trim() || '';
       }
     }
@@ -52,11 +51,20 @@ const getContextSentence = (selection: Selection): string => {
   return node?.textContent?.trim() || '';
 };
 
-const processSelection = async (selection: Selection, contextSentence: string): Promise<void> => {
+const processSelection = async (selection: Selection): Promise<void> => {
+  if (isProcessing) return; 
+  isProcessing = true; 
+
   const selectedText = selection.toString().trim();
-  if (!selectedText) return;
+  if (!selectedText) {
+    isProcessing = false;
+    return;
+  }
+
+  removeAllTooltips();
 
   try {
+    const contextSentence = getContextSentence(selection);
     const dictionary = new CambridgeDictionary();
     const url = `https://dictionary.cambridge.org/dictionary/english-spanish/${encodeURIComponent(selectedText)}`;
 
@@ -69,7 +77,8 @@ const processSelection = async (selection: Selection, contextSentence: string): 
     dataForTooltip = { results: definitionData, contextSentence };
 
     if (definitionData.length > 0) {
-      iframe = document.createElement('iframe');
+      const iframe = document.createElement('iframe');
+      iframe.className = TOOLTIP_CLASS_NAME;
       iframe.src = chrome.runtime.getURL('tooltip.html');
       iframe.style.position = 'absolute';
       iframe.style.zIndex = '99999';
@@ -90,59 +99,75 @@ const processSelection = async (selection: Selection, contextSentence: string): 
     if (!(error instanceof Error && error.message.includes('Extension context invalidated'))) {
       console.error("Content Script: Error en el flujo:", error);
     }
+  } finally {
+    isProcessing = false; 
   }
 };
 
-const handleMouseUp = async (event: MouseEvent): Promise<void> => {
-  if (iframe && iframe.contains(event.target as Node)) {
-    return;
-  }
-  removeTooltip();
 
-  const settings = (await chrome.storage.local.get(defaultSettings)) as ExtensionSettings;
-  if (!settings.isExtensionActive) return;
+const handleKeyDown = async (event: KeyboardEvent): Promise<void> => {
+  const settings = await chrome.storage.local.get(defaultSettings) as ExtensionSettings;
+  if (!settings.isExtensionActive || settings.autoSelectKey === 'off') return;
 
   const keyMap = { alt: event.altKey, shift: event.shiftKey, ctrl: event.ctrlKey };
   const modifierKey = settings.autoSelectKey as keyof typeof keyMap;
 
-  if (settings.autoSelectKey !== 'off' && keyMap[modifierKey]) {
+  if (keyMap[modifierKey]) {
+    event.preventDefault();
+    event.stopPropagation();
+
     const selection = window.getSelection();
     if (!selection) return;
 
-    selection.modify('move', 'backward', 'word');
-    selection.modify('extend', 'forward', 'word');
+    const range = document.caretRangeFromPoint(lastMousePosition.x, lastMousePosition.y);
+    if (range) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+      selection.modify('move', 'backward', 'word');
+      selection.modify('extend', 'forward', 'word');
+    }
     
     if (selection.toString().trim() && selection.rangeCount > 0) {
-      const contextSentence = getContextSentence(selection);
-      await processSelection(selection, contextSentence);
+      await processSelection(selection);
     }
-    return;
-  }
-
-  if (settings.isMouseSelectionActive) {
-    setTimeout(async () => {
-      const selection = window.getSelection();
-      if (selection && selection.toString().trim() && selection.rangeCount > 0) {
-        const contextSentence = getContextSentence(selection);
-        await processSelection(selection, contextSentence);
-      }
-    }, 10);
   }
 };
 
-const handleIframeMessage = (event: MessageEvent): void => {
-  if (iframe && event.source === iframe.contentWindow && event.data.type === 'TOOLTIP_READY') {
-    iframe.contentWindow?.postMessage(dataForTooltip, '*');
+const handleMouseUp = async (): Promise<void> => {
+  const selection = window.getSelection();
+  if (!selection || !selection.toString().trim() || selection.type !== 'Range') {
+    return;
+  }
+  
+  const settings = (await chrome.storage.local.get(defaultSettings)) as ExtensionSettings;
+  if (!settings.isExtensionActive || !settings.isMouseSelectionActive) {
+    return;
+  }
+  
+  if (selection.rangeCount > 0) {
+    await processSelection(selection);
   }
 };
 
 const handleMouseDown = (event: MouseEvent): void => {
-  if (iframe && event.target instanceof Node && !iframe.contains(event.target)) {
-    removeTooltip();
+  const target = event.target as Element;
+  if (!target.closest(`.${TOOLTIP_CLASS_NAME}`)) {
+    removeAllTooltips();
   }
 };
 
-// Listeners
+const handleIframeMessage = (event: MessageEvent): void => {
+  const tooltips = document.querySelectorAll<HTMLIFrameElement>(`.${TOOLTIP_CLASS_NAME}`);
+  const lastTooltip = tooltips[tooltips.length - 1];
+  if (lastTooltip && event.source === lastTooltip.contentWindow && event.data.type === 'TOOLTIP_READY') {
+    lastTooltip.contentWindow?.postMessage(dataForTooltip, '*');
+  }
+};
+
+document.addEventListener('mousemove', (event) => {
+  lastMousePosition = { x: event.clientX, y: event.clientY };
+});
+document.addEventListener('keydown', handleKeyDown);
 document.addEventListener('mouseup', handleMouseUp);
 document.addEventListener('mousedown', handleMouseDown);
 window.addEventListener('message', handleIframeMessage);
