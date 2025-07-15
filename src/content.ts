@@ -1,9 +1,33 @@
-// Importa el módulo específico del diccionario que vamos a usar
 import { CambridgeDictionary } from './lib/dictionaries/cambridge';
 import type { ScraperResponse } from './types/tooltip';
+import type { ExtensionSettings } from './types/storage';
 
 let iframe: HTMLIFrameElement | null = null;
-let dataForTooltip: ScraperResponse | null = null;
+let dataForTooltip: { results: ScraperResponse; contextSentence: string } | null = null;
+
+const defaultSettings: ExtensionSettings = {
+  isExtensionActive: true,
+  isMouseSelectionActive: true,
+  autoSelectKey: 'off',
+  ankiExportMode: 'ankiconnect',
+  activeDictionaries: { 'enes_cambridge': true },
+  mainDictionary: 'enes_cambridge',
+  selectedDeck: 'Default',
+  selectedAnkiModel: 'Basic',
+  ankiFieldMappings: {
+    expression: 'Front',
+    pronunciation: 'Reading',
+    definition: 'Back',
+    definitions: '',
+    note: 'Note',
+    extraInfo: 'ExtraInfo',
+    url: 'URL',
+    audio: 'Sound',
+    picture: 'Picture',
+  },
+  ankiTags: ['AnkiWordFlow'],
+  ankiAllowDuplicates: false,
+};
 
 const removeTooltip = (): void => {
   if (iframe) {
@@ -13,48 +37,96 @@ const removeTooltip = (): void => {
   }
 };
 
-const handleMouseUp = async (): Promise<void> => {
-  removeTooltip();
-
-  const selection = window.getSelection();
-  const selectedText = selection?.toString().trim();
-
-  if (selectedText && selection) {
-    try {
-      // --- Lógica del Orquestador ---
-      // 1. Decide qué diccionario usar (en el futuro, esto vendrá de las opciones)
-      const dictionary = new CambridgeDictionary();
-      const url = `https://dictionary.cambridge.org/dictionary/english-spanish/${encodeURIComponent(selectedText)}`;
-
-      // 2. Pide el HTML al background
-      const response = await chrome.runtime.sendMessage({ type: 'FETCH_HTML', url });
-      if (response.error || !response.html) {
-        throw new Error(response.error || 'No se recibió HTML');
+const getContextSentence = (selection: Selection): string => {
+  if (!selection.anchorNode) return '';
+  let node = selection.anchorNode;
+  while (node && node.nodeName !== 'BODY') {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const display = window.getComputedStyle(node as Element).display;
+      if (['block', 'list-item', 'table-cell'].includes(display)) {
+        return node.textContent?.trim() || '';
       }
+    }
+    node = node.parentNode!;
+  }
+  return node?.textContent?.trim() || '';
+};
 
-      // 3. Usa el módulo de diccionario para parsear el HTML
-      const definitionData = dictionary.parse(response.html);
-      dataForTooltip = definitionData;
+const processSelection = async (selection: Selection, contextSentence: string): Promise<void> => {
+  const selectedText = selection.toString().trim();
+  if (!selectedText) return;
 
-      // 4. Si hay resultados, crea el iframe
-      if (definitionData.length > 0) {
-        iframe = document.createElement('iframe');
-        iframe.src = chrome.runtime.getURL('tooltip.html');
-        iframe.style.position = 'absolute';
-        iframe.style.zIndex = '99999';
-        iframe.style.border = 'none';
-        iframe.style.width = '350px';
-        iframe.style.height = '180px';
-        
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        iframe.style.top = `${rect.bottom + window.scrollY + 8}px`;
-        iframe.style.left = `${rect.left + window.scrollX}px`;
-        document.body.appendChild(iframe);
-      }
-    } catch (error) {
+  try {
+    const dictionary = new CambridgeDictionary();
+    const url = `https://dictionary.cambridge.org/dictionary/english-spanish/${encodeURIComponent(selectedText)}`;
+
+    const response = await chrome.runtime.sendMessage({ type: 'FETCH_HTML', url });
+    if (response.error || !response.html) {
+      throw new Error(response.error || 'No se recibió HTML');
+    }
+
+    const definitionData = dictionary.parse(response.html);
+    dataForTooltip = { results: definitionData, contextSentence };
+
+    if (definitionData.length > 0) {
+      iframe = document.createElement('iframe');
+      iframe.src = chrome.runtime.getURL('tooltip.html');
+      iframe.style.position = 'absolute';
+      iframe.style.zIndex = '99999';
+      iframe.style.border = 'none';
+      iframe.style.width = '380px';
+      iframe.style.height = 'auto';
+      iframe.style.minHeight = '180px';
+      iframe.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.2)';
+      iframe.style.borderRadius = '0.75rem';
+      
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      iframe.style.top = `${rect.bottom + window.scrollY + 8}px`;
+      iframe.style.left = `${rect.left + window.scrollX}px`;
+      document.body.appendChild(iframe);
+    }
+  } catch (error) {
+    if (!(error instanceof Error && error.message.includes('Extension context invalidated'))) {
       console.error("Content Script: Error en el flujo:", error);
     }
+  }
+};
+
+const handleMouseUp = async (event: MouseEvent): Promise<void> => {
+  if (iframe && iframe.contains(event.target as Node)) {
+    return;
+  }
+  removeTooltip();
+
+  const settings = (await chrome.storage.local.get(defaultSettings)) as ExtensionSettings;
+  if (!settings.isExtensionActive) return;
+
+  const keyMap = { alt: event.altKey, shift: event.shiftKey, ctrl: event.ctrlKey };
+  const modifierKey = settings.autoSelectKey as keyof typeof keyMap;
+
+  if (settings.autoSelectKey !== 'off' && keyMap[modifierKey]) {
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    selection.modify('move', 'backward', 'word');
+    selection.modify('extend', 'forward', 'word');
+    
+    if (selection.toString().trim() && selection.rangeCount > 0) {
+      const contextSentence = getContextSentence(selection);
+      await processSelection(selection, contextSentence);
+    }
+    return;
+  }
+
+  if (settings.isMouseSelectionActive) {
+    setTimeout(async () => {
+      const selection = window.getSelection();
+      if (selection && selection.toString().trim() && selection.rangeCount > 0) {
+        const contextSentence = getContextSentence(selection);
+        await processSelection(selection, contextSentence);
+      }
+    }, 10);
   }
 };
 
@@ -71,6 +143,6 @@ const handleMouseDown = (event: MouseEvent): void => {
 };
 
 // Listeners
-window.addEventListener('message', handleIframeMessage);
 document.addEventListener('mouseup', handleMouseUp);
 document.addEventListener('mousedown', handleMouseDown);
+window.addEventListener('message', handleIframeMessage);

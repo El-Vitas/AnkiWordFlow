@@ -4,7 +4,6 @@ import { Select } from '../../../common/components/Select';
 import { useStorage } from '../../../hooks/useStorage';
 import { AutoSelectKey, type ExtensionSettings } from '../../../types/storage';
 
-// 👇 CAMBIO 1: La prop ahora es opcional
 interface ActivationControlsProps {
   onSettingsChange?: () => void;
 }
@@ -22,7 +21,6 @@ export const ActivationControls: React.FC<ActivationControlsProps> = ({ onSettin
 
   const handleChange = <K extends keyof ExtensionSettings>(key: K, value: ExtensionSettings[K]) => {
     updateSetting(key, value);
-    // 👇 CAMBIO 2: Solo llamamos a la función si fue pasada como prop
     onSettingsChange?.(); 
   };
 

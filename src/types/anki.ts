@@ -8,18 +8,28 @@ export interface AnkiFieldMappings {
   extraInfo: string;
   url: string;
   audio: string;
+  picture: string;
 }
 
-// Define la estructura completa de una nota que se enviará a AnkiConnect
 export interface AnkiNote {
   deckName: string;
   modelName: string;
   fields: { [key: string]: string };
   options?: {
     allowDuplicate: boolean;
+    duplicateScope?: "deck" | "collection";
+    duplicateScopeOptions?: {
+      deckName?: string;
+      checkChildren?: boolean;
+      checkAllModels?: false
+    };
   };
-  // El campo de audio es especial y tiene su propia estructura
   audio?: {
+    url: string;
+    filename: string;
+    fields: string[];
+  }[];
+  picture?: {
     url: string;
     filename: string;
     fields: string[];

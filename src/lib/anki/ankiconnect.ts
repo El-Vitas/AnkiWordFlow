@@ -6,21 +6,18 @@ export class AnkiConnectService {
 
   private async invoke<T>(action: string, params: object = {}): Promise<T> {
     const request = { action, version: this.version, params };
-    try {
-      const response = await fetch(this.url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify(request),
-      });
-      if (!response.ok) throw new Error(`Error de red: ${response.statusText}`);
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-      return data.result as T;
-    } catch (e) {
-      const error = e instanceof Error ? e.message : String(e);
-      console.error(`AnkiConnect Error: ${error}`);
-      throw new Error(`No se pudo conectar con AnkiConnect. Asegúrate de que Anki esté abierto y el addon instalado. Error: ${error}`);
+    const response = await fetch(this.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) throw new Error(`Error de red: ${response.statusText}`);
+    
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error);
     }
+    return data.result as T;
   }
 
   public getDeckNames = async (): Promise<string[]> => {
@@ -33,6 +30,10 @@ export class AnkiConnectService {
 
   public getModelFieldNames = async (modelName: string): Promise<string[]> => {
     return this.invoke<string[]>('modelFieldNames', { modelName });
+  };
+
+  public findNotes = async (query: string): Promise<number[]> => {
+    return this.invoke<number[]>('findNotes', { query });
   };
 
   public addNote = async (note: AnkiNote): Promise<number | null> => {

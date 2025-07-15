@@ -4,12 +4,10 @@ import { Select } from '../../../common/components/Select';
 import { AnkiExportMode, type ExtensionSettings } from '../../../types/storage';
 import type { AnkiFieldMappings } from '../../../types/anki';
 
-// 👇 1. Definimos la interfaz de props
 interface AnkiConnectSettingsProps {
   onSettingsChange: () => void;
 }
 
-// 👇 2. Usamos la interfaz
 export const AnkiConnectSettings: React.FC<AnkiConnectSettingsProps> = ({ onSettingsChange }) => {
   const { settings, updateSetting, isLoading: isLoadingSettings } = useStorage();
 
@@ -19,7 +17,6 @@ export const AnkiConnectSettings: React.FC<AnkiConnectSettingsProps> = ({ onSett
   const [error, setError] = useState<string | null>(null);
   const [ankiVersion, setAnkiVersion] = useState<number | null>(null);
 
-  // 👇 3. Función centralizada para actualizar y notificar
   const handleChange = <K extends keyof ExtensionSettings>(key: K, value: ExtensionSettings[K]) => {
     updateSetting(key, value);
     onSettingsChange();

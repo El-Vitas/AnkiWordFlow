@@ -1,46 +1,56 @@
 {
-    "manifest_version": 3,
-    "author": "El-Vitas",
-    "name": "Anki Word Flow",
-    "version": "0.1.0",
-    "description": "A Chrome extension to enhance Anki with word flow features.",
-    "action": {
-        "default_popup": "index.html"
-    },
-    "options_ui": {
-        "page": "options.html",
-        "open_in_tab": true
-    },
-    "background": {
-        "service_worker": "assets/background.js"
-    },
-    "permissions": [
-        "scripting",
-        "storage",
-        "contextMenus"
-    ],
-    "host_permissions": [
+  "manifest_version": 3,
+  "author": "El-Vitas",
+  "name": "Anki Word Flow",
+  "version": "1.0.0",
+  "description": "A Chrome extension to enhance Anki with word flow features.",
+  
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "awfMain.png",
+      "48": "awfMain.png"
+    }
+  },
+  "icons": {
+    "16": "awfMain.png",
+    "48": "awfMain.png",
+    "128": "awfMain.png"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "assets/background.js"
+  },
+  "permissions": [
+    "scripting",
+    "storage",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
         "<all_urls>"
-    ],
-    "content_scripts": [
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "js": [
-                "assets/content.js"
-            ]
-        }
-    ],
-    "web_accessible_resources": [
-        {
-            "resources": [
-                "tooltip.html",
-                "assets/*"
-            ],
-            "matches": [
-                "<all_urls>"
-            ]
-        }
-    ]
+      ],
+      "js": [
+        "assets/content.js"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "tooltip.html",
+        "assets/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }

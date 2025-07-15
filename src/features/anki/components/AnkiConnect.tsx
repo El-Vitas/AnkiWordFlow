@@ -2,7 +2,6 @@ import { Select } from "../../../common/components/Select";
 import { useStorage } from "../../../hooks/useStorage";
 import { AnkiExportMode } from "../../../types/storage";
 
-// Actualizamos las opciones para que usen el enum
 const exportOptions = [
     { value: AnkiExportMode.None, label: 'None' },
     { value: AnkiExportMode.AnkiConnect, label: 'AnkiConnect' },
@@ -23,7 +22,6 @@ export function AnkiConnect() {
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 items-center gap-4">
-                {/* Ahora el Select recibe 'value' y 'onChange' del hook */}
                 <Select
                     label="Data Export"
                     options={exportOptions}

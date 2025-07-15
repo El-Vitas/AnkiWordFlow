@@ -3,51 +3,86 @@ import { createRoot, type Root } from 'react-dom/client';
 import './index.css';
 import { useStorage } from './hooks/useStorage';
 import type { DictionaryResult, ScraperResponse } from './types/tooltip';
-import type { AnkiNote} from './types/anki';
+import type { AnkiNote, AnkiFieldMappings } from './types/anki';
 
-const AudioButton: React.FC<{ region: string; url: string; isSelected: boolean; onSelect: () => void; }> = ({ region, url, isSelected, onSelect }) => {
-  const playAudio = () => {
-    new Audio(url).play();
-    onSelect();
-  };
-  return (
-    <button onClick={playAudio} className={`px-2 py-1 text-xs border rounded-md ${isSelected ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
-      {region}
-    </button>
-  );
+type TooltipPayload = {
+  results: ScraperResponse;
+  contextSentence: string;
 };
 
-const DictionaryResultCard: React.FC<{ result: DictionaryResult }> = ({ result }) => {
-  const { settings } = useStorage();
+const DictionaryResultCard: React.FC<{ result: DictionaryResult; contextSentence: string }> = ({ result, contextSentence }) => {
+  const { settings, isLoading: isLoadingSettings } = useStorage();
   const [isAdding, setIsAdding] = useState(false);
-  const [selectedAudioUrl, setSelectedAudioUrl] = useState<string | undefined>(undefined);
+  const [selectedAudioUrl, setSelectedAudioUrl] = useState<string | undefined>(
+    result.audios.find(a => a.region === 'UK')?.url || result.audios[0]?.url
+  );
 
   const handleAddNote = async () => {
-    if (!settings) return;
+    if (!settings) {
+      alert('Error: No se pudo cargar la configuración.');
+      return;
+    }
     setIsAdding(true);
 
     const { ankiFieldMappings: mappings, ankiAllowDuplicates, ankiTags, selectedDeck, selectedAnkiModel } = settings;
     
-    // Construcción dinámica de los campos
+    const richContent = result.definitions.map(d => 
+      `<div style="margin-bottom: 12px; font-family: Arial, sans-serif; text-align: left;">
+         <ul style="margin: 0; padding-left: 8px; list-style-type: '• '; color: #4A5568;">
+           ${d.examples.map(ex => 
+             `<li style="margin-bottom: 6px; padding-left: 4px;">
+                <span style="display: block; color: #2D3748; font-size: 15px; line-height: 1.4;">${ex.original}</span>
+                <span style="display: block; color: #718096; font-style: italic; font-size: 15px; line-height: 1.4;">${ex.translation}</span>
+              </li>`
+           ).join('')}
+         </ul>
+       </div>`
+    ).join('<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 12px 0;">');
+
+    const availableData = {
+      expression: result.word,
+      pronunciation: result.phonetic,
+      definition: result.definitions[0]?.translation || '',
+      note: contextSentence,
+      extraInfo: result.partOfSpeech,
+      url: `https://dictionary.cambridge.org/dictionary/english-spanish/${result.word}`,
+      picture: richContent, 
+    };
+
+    // 3. Mapeamos los datos a los campos de Anki
     const fields: { [key: string]: string } = {};
-    if (mappings.expression) fields[mappings.expression] = result.word;
-    if (mappings.pronunciation) fields[mappings.pronunciation] = result.phonetic;
-    if (mappings.definition) fields[mappings.definition] = result.definitions.map(d => d.translation).join('<br>');
-    // Puedes añadir más mapeos aquí
+    for (const key in mappings) {
+      const fieldKey = key as keyof AnkiFieldMappings;
+      const ankiFieldName = mappings[fieldKey];
+      
+      if (ankiFieldName && Object.prototype.hasOwnProperty.call(availableData, fieldKey)) {
+        const value = availableData[fieldKey as keyof typeof availableData];
+        if (value) {
+          fields[ankiFieldName] = value;
+        }
+      }
+    }
 
     const note: AnkiNote = {
       deckName: selectedDeck,
       modelName: selectedAnkiModel,
       fields,
-      options: { allowDuplicate: ankiAllowDuplicates },
+      options: {
+        allowDuplicate: ankiAllowDuplicates,
+        duplicateScope: "deck",
+        duplicateScopeOptions: {
+          deckName: selectedDeck, 
+          checkChildren: false,
+          checkAllModels: false
+        }
+      },
       tags: ankiTags,
     };
 
-    // Añade el audio si se ha seleccionado uno y hay un campo mapeado para él
     if (selectedAudioUrl && mappings.audio) {
       note.audio = [{
         url: selectedAudioUrl,
-        filename: `ankimine_${result.word}_${Date.now()}.mp3`,
+        filename: `ankiwordflow_${result.word.replace(/ /g, '_')}_${Date.now()}.mp3`,
         fields: [mappings.audio],
       }];
     }
@@ -55,15 +90,28 @@ const DictionaryResultCard: React.FC<{ result: DictionaryResult }> = ({ result }
     try {
       const response = await chrome.runtime.sendMessage({ type: 'ANKI_ADD_NOTE', note });
       if (response?.error) {
-        alert(`Error al guardar en Anki: ${response.error}`);
+        alert(`Error de AnkiConnect: ${response.error}`);
       } else {
         alert(`¡Nota para "${result.word}" guardada con éxito!`);
       }
     } catch (error) {
-      alert(`Error: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      alert(`Error de comunicación: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
       setIsAdding(false);
     }
+  };
+
+  const AudioButton: React.FC<{ region: string; url: string; isSelected: boolean; onSelect: () => void; }> = ({ region, url, isSelected, onSelect }) => {
+    const playAudio = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      new Audio(url).play();
+      onSelect();
+    };
+    return (
+      <button onClick={playAudio} className={`px-2 py-1 text-xs border rounded-md ${isSelected ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
+        {region}
+      </button>
+    );
   };
 
   return (
@@ -74,7 +122,7 @@ const DictionaryResultCard: React.FC<{ result: DictionaryResult }> = ({ result }
           <span className="text-gray-500 ml-2">{result.phonetic}</span>
           <span className="italic text-gray-600 ml-2">{result.partOfSpeech}</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           {result.audios.map(audio => (
             <AudioButton key={audio.region} region={audio.region} url={audio.url} isSelected={selectedAudioUrl === audio.url} onSelect={() => setSelectedAudioUrl(audio.url)} />
           ))}
@@ -94,7 +142,7 @@ const DictionaryResultCard: React.FC<{ result: DictionaryResult }> = ({ result }
         ))}
       </main>
       <footer className="mt-2 pt-3 border-t border-gray-200">
-        <button onClick={handleAddNote} disabled={isAdding} className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400">
+        <button onClick={handleAddNote} disabled={isAdding || isLoadingSettings} className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400">
           {isAdding ? 'Añadiendo...' : 'Añadir a Anki'}
         </button>
       </footer>
@@ -103,14 +151,14 @@ const DictionaryResultCard: React.FC<{ result: DictionaryResult }> = ({ result }
 };
 
 export const TooltipApp: React.FC = () => {
-  const [results, setResults] = useState<ScraperResponse | null>(null);
+  const [payload, setPayload] = useState<TooltipPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     window.parent.postMessage({ type: 'TOOLTIP_READY' }, '*');
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data && Array.isArray(event.data)) {
-        setResults(event.data);
+    const handleMessage = (event: MessageEvent<TooltipPayload>) => {
+      if (event.data && Array.isArray(event.data.results)) {
+        setPayload(event.data);
         setIsLoading(false);
       }
     };
@@ -119,12 +167,12 @@ export const TooltipApp: React.FC = () => {
   }, []);
 
   if (isLoading) return <div className="p-4 text-sm text-center text-gray-500">Buscando...</div>;
-  if (!results || results.length === 0) return <div className="p-4 text-sm text-center text-red-500">No se encontraron resultados.</div>;
+  if (!payload || payload.results.length === 0) return <div className="p-4 text-sm text-center text-red-500">No se encontraron resultados.</div>;
 
   return (
     <div className="flex flex-col gap-4 p-2 bg-transparent">
-      {results.map((result, index) => (
-        <DictionaryResultCard key={index} result={result} />
+      {payload.results.map((result, index) => (
+        <DictionaryResultCard key={index} result={result} contextSentence={payload.contextSentence} />
       ))}
     </div>
   );

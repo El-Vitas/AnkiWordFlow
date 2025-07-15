@@ -7,7 +7,6 @@ import { SaveNotification } from '../common/components/SaveNotification';
 
 const TABS = ['General', 'Diccionarios', 'Servicios'];
 
-// 👇 LA CLAVE ES ASEGURARSE DE QUE 'export' ESTÉ AQUÍ
 export const OptionsLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState(TABS[0]);
   const [showSaveNotification, setShowSaveNotification] = useState(false);

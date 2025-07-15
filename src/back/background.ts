@@ -43,8 +43,28 @@ chrome.runtime.onMessage.addListener(
               return await ankiService.getModelNames();
             case "ANKI_GET_MODEL_FIELD_NAMES":
               return await ankiService.getModelFieldNames(message.modelName);
-            case "ANKI_ADD_NOTE":
-              return await ankiService.addNote(message.note);
+            
+            case "ANKI_ADD_NOTE": {
+              const { note } = message;
+
+              if (note.options && !note.options.allowDuplicate) {
+                const firstFieldName = Object.keys(note.fields)[0];
+                const firstFieldValue = note.fields[firstFieldName];
+                
+                const query = `deck:"${note.deckName}" "${firstFieldName}:${firstFieldValue}"`;
+                
+                const duplicateNotes = await ankiService.findNotes(query);
+                
+                if (duplicateNotes.length > 0) {
+                  throw new Error('La nota ya existe en este mazo.');
+                }
+                note.options = {allowDuplicate: true};
+                return await ankiService.addNote(note as AnkiNote);
+              }
+              
+              return await ankiService.addNote(note);
+            }
+
             default:
               throw new Error(`Acción de Anki desconocida.`);
           }

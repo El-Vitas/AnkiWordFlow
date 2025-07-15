@@ -29,7 +29,7 @@ export const ToolbarPopup: React.FC = () => {
     <div className="w-80 p-4 bg-gray-50 font-sans">
       <header className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
-          <img src="/vite.svg" alt="AnkiWordFlow Logo" className="w-6 h-6" />
+          <img src="/awfMain.png" alt="AnkiWordFlow Logo" className="w-6 h-6" />
           <h1 className="text-lg font-bold text-gray-800">AnkiWordFlow</h1>
         </div>
         <button
