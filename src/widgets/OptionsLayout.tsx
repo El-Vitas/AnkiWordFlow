@@ -1,59 +1,61 @@
-import React, { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Card } from '../common/components/Card';
-import { ActivationControls } from '../features/activation/components/ActivationControls';
-import { DictionaryTable } from '../features/dictionary/components/DictionaryTable';
-import { AnkiConnectSettings } from '../features/anki/components/AnkiConnectSettings';
 import { SaveNotification } from '../common/components/SaveNotification';
+import { ActivationControls } from '../features/activation/components/ActivationControls';
+import { AnkiConnectSettings } from '../features/anki/components/AnkiConnectSettings';
+import { DictionaryTable } from '../features/dictionary/components/DictionaryTable';
+import { t } from '../lib/i18n';
 
-const TABS = ['General', 'Diccionarios', 'Servicios'];
+const TABS = ['general', 'dictionaries', 'anki'] as const;
+type Tab = (typeof TABS)[number];
 
-export const OptionsLayout: React.FC = () => {
-  const [activeTab, setActiveTab] = useState(TABS[0]);
-  const [showSaveNotification, setShowSaveNotification] = useState(false);
+const TAB_LABELS: Record<Tab, string> = { general: 'tabGeneral', dictionaries: 'tabDictionaries', anki: 'tabAnki' };
+const NOTIFICATION_MS = 2000;
 
-  const triggerSaveNotification = () => {
-    setShowSaveNotification(true);
-    setTimeout(() => setShowSaveNotification(false), 2000);
-  };
+export const OptionsLayout = () => {
+  const [activeTab, setActiveTab] = useState<Tab>('general');
+  const [showSaved, setShowSaved] = useState(false);
+  const hideTimer = useRef<number | undefined>(undefined);
 
-  const handleClose = () => {
-    window.close();
+  const notifySaved = () => {
+    setShowSaved(true);
+    window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => setShowSaved(false), NOTIFICATION_MS);
   };
 
   return (
-    <div className="w-full bg-white font-sans text-gray-800">
-      <nav className="flex border-b border-gray-200 bg-gray-50">
-        {TABS.map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-6 py-3 text-sm font-semibold transition-colors focus:outline-none ${activeTab === tab ? 'border-b-2 border-blue-600 text-blue-600 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            {tab}
-          </button>
-        ))}
-      </nav>
+    <div className="min-h-screen w-full bg-white font-sans text-gray-800">
+      <div className="max-w-2xl mx-auto">
+        <header className="flex items-center gap-2 px-6 pt-6 pb-4">
+          <img src="/awfMain.png" alt="" className="w-7 h-7" />
+          <h1 className="text-xl font-bold">{t('settingsTitle')}</h1>
+        </header>
+        <nav role="tablist" className="flex border-b border-gray-200 bg-gray-50">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-6 py-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${activeTab === tab ? 'border-b-2 border-blue-600 text-blue-600 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              {t(TAB_LABELS[tab])}
+            </button>
+          ))}
+        </nav>
 
-      <main className="p-6 min-h-[400px]">
-        {activeTab === 'General' && <ActivationControls onSettingsChange={triggerSaveNotification} />}
-        {activeTab === 'Diccionarios' && <DictionaryTable onSettingsChange={triggerSaveNotification} />}
-        {activeTab === 'Servicios' && (
-          <Card title="Opciones de AnkiConnect">
-            <AnkiConnectSettings onSettingsChange={triggerSaveNotification} />
-          </Card>
-        )}
-      </main>
-
-      <footer className="flex justify-end space-x-3 p-4 bg-gray-50 border-t border-gray-200">
-        <button
-          onClick={handleClose}
-          className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
-        >
-          Cerrar
-        </button>
-      </footer>
-      
-      <SaveNotification show={showSaveNotification} message="Guardado" />
+        <main className="p-6 min-h-[400px]">
+          {activeTab === 'general' && <ActivationControls onSettingsChange={notifySaved} />}
+          {activeTab === 'dictionaries' && <DictionaryTable onSettingsChange={notifySaved} />}
+          {activeTab === 'anki' && (
+            <Card title={t('ankiConnectSettings')}>
+              <AnkiConnectSettings onSettingsChange={notifySaved} />
+            </Card>
+          )}
+        </main>
+      </div>
+      <SaveNotification show={showSaved} message={t('saved')} />
     </div>
   );
 };

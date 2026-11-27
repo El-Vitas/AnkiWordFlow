@@ -1,62 +1,56 @@
-// Define el tipo para las teclas de auto-selección.
-import type { AnkiFieldMappings } from "./anki";
-
-export type AutoSelectKey = "off" | "alt" | "shift" | "ctrl";
+import type { AnkiFieldMappings } from './anki';
 
 export const AutoSelectKey = {
-	Off: "off" as AutoSelectKey,
-	Alt: "alt" as AutoSelectKey,
-	Shift: "shift" as AutoSelectKey,
-	Ctrl: "ctrl" as AutoSelectKey,
-};
-
-export type AnkiExportMode = "none" | "ankiconnect" | "ankiweb";
+  Off: 'off',
+  Alt: 'alt',
+  Shift: 'shift',
+  Ctrl: 'ctrl',
+} as const;
+export type AutoSelectKey = (typeof AutoSelectKey)[keyof typeof AutoSelectKey];
 
 export const AnkiExportMode = {
-	None: "none" as AnkiExportMode,
-	AnkiConnect: "ankiconnect" as AnkiExportMode,
-	AnkiWeb: "ankiweb" as AnkiExportMode,
-};
+  None: 'none',
+  AnkiConnect: 'ankiconnect',
+} as const;
+export type AnkiExportMode = (typeof AnkiExportMode)[keyof typeof AnkiExportMode];
 
-export type ActiveDictionaries = {
-	[dictionaryId: string]: boolean;
-};
+export type ActiveDictionaries = Record<string, boolean>;
 
 export interface ExtensionSettings {
-	isExtensionActive: boolean;
-	isMouseSelectionActive: boolean;
-	autoSelectKey: string;
-	ankiExportMode: AnkiExportMode;
-	activeDictionaries: ActiveDictionaries;
-	mainDictionary: string;
-
-	selectedDeck: string;
-	selectedAnkiModel: string;
-	ankiFieldMappings: AnkiFieldMappings;
-	ankiTags: string[];
-	ankiAllowDuplicates: boolean;
+  isExtensionActive: boolean;
+  isMouseSelectionActive: boolean;
+  autoSelectKey: AutoSelectKey;
+  ankiExportMode: AnkiExportMode;
+  activeDictionaries: ActiveDictionaries;
+  mainDictionary: string;
+  selectedDeck: string;
+  selectedAnkiModel: string;
+  ankiFieldMappings: AnkiFieldMappings;
+  ankiTags: string[];
+  ankiAllowDuplicates: boolean;
 }
 
+/** The only defaults: every part of the extension reads settings through lib/settings.ts, which uses these. */
 export const defaultSettings: ExtensionSettings = {
-	isExtensionActive: true,
-	isMouseSelectionActive: true,
-	autoSelectKey: "off",
-	ankiExportMode: AnkiExportMode.None,
-	activeDictionaries: { enes_cambridge: true },
-	mainDictionary: "enes_cambridge",
-	selectedDeck: "Default",
-	selectedAnkiModel: "Minado de Oraciones - AnkiMine",
-	ankiFieldMappings: {
-		expression: "Front",
-		pronunciation: "Reading",
-		definition: "Back",
-		definitions: "Definitions",
-		note: "Note",
-		extraInfo: "ExtraInfo",
-		url: "URL",
-		audio: "Sound",
-		picture: "Picture",
-	},
-	ankiTags: ["AnkiWordFlow"],
-	ankiAllowDuplicates: false,
+  isExtensionActive: true,
+  isMouseSelectionActive: true,
+  autoSelectKey: AutoSelectKey.Off,
+  ankiExportMode: AnkiExportMode.AnkiConnect,
+  activeDictionaries: { enes_cambridge: true },
+  mainDictionary: 'enes_cambridge',
+  selectedDeck: 'Default',
+  selectedAnkiModel: 'Basic',
+  ankiFieldMappings: {
+    expression: 'Front',
+    pronunciation: '',
+    definition: 'Back',
+    definitions: '',
+    note: '',
+    extraInfo: '',
+    url: '',
+    audio: '',
+    examples: '',
+  },
+  ankiTags: ['AnkiWordFlow'],
+  ankiAllowDuplicates: false,
 };

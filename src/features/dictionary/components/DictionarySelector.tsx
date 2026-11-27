@@ -1,34 +1,23 @@
-import React from 'react';
 import { Select } from '../../../common/components/Select';
 import { useStorage } from '../../../hooks/useStorage';
-import { availableDictionaries } from '../../../lib/dictionaries'; 
+import { availableDictionaries } from '../../../lib/dictionaries';
+import { t } from '../../../lib/i18n';
 
-interface DictionarySelectorProps {
-  onSettingsChange?: () => void;
-}
-
-export const DictionarySelector: React.FC<DictionarySelectorProps> = ({ onSettingsChange }) => {
+export const DictionarySelector = () => {
   const { settings, updateSetting, isLoading } = useStorage();
+  if (isLoading) return null;
 
-  if (isLoading) return <div>Cargando...</div>;
-
-  const activeDictionaryOptions = availableDictionaries
-    .filter(dict => settings.activeDictionaries[dict.id])
-    .map(dict => ({ value: dict.id, label: dict.name }));
-
-  const handleChange = (value: string) => {
-    updateSetting('mainDictionary', value);
-    onSettingsChange?.();
-  };
+  const options = availableDictionaries
+    .filter((dictionary) => settings.activeDictionaries[dictionary.id])
+    .map((dictionary) => ({ value: dictionary.id, label: t(dictionary.nameKey) }));
 
   return (
     <div className="p-4 bg-white rounded-lg border border-gray-200">
-      <Select
-        label="Diccionario"
-        options={activeDictionaryOptions}
-        value={settings.mainDictionary}
-        onChange={handleChange}
-      />
+      {options.length > 0 ? (
+        <Select label={t('dictionary')} options={options} value={settings.mainDictionary} onChange={(value) => void updateSetting('mainDictionary', value)} />
+      ) : (
+        <p className="text-sm text-gray-600">{t('noDictionary')}</p>
+      )}
     </div>
   );
 };

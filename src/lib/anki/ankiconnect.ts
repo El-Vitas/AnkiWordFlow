@@ -1,50 +1,46 @@
 import type { AnkiNote } from '../../types/anki';
 
-export class AnkiConnectService {
-  private readonly version = 6;
-  private readonly url = 'http://127.0.0.1:8765';
+export const ANKI_CONNECT_URL = 'http://127.0.0.1:8765';
+const API_VERSION = 6;
+const TIMEOUT_MS = 5000;
 
-  private async invoke<T>(action: string, params: object = {}): Promise<T> {
-    const request = { action, version: this.version, params };
-    const response = await fetch(this.url, {
+/** An AnkiConnect failure the UI can explain: Anki closed, a duplicate note, or Anki's own message. */
+export class AnkiConnectError extends Error {
+  readonly code: 'unreachable' | 'duplicate' | 'anki';
+
+  constructor(code: AnkiConnectError['code'], message: string) {
+    super(message);
+    this.name = 'AnkiConnectError';
+    this.code = code;
+  }
+}
+
+const invoke = async <T>(action: string, params: object = {}): Promise<T> => {
+  let response: Response;
+  try {
+    response = await fetch(ANKI_CONNECT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify(request),
+      body: JSON.stringify({ action, version: API_VERSION, params }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    if (!response.ok) throw new Error(`Error de red: ${response.statusText}`);
-    
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.error);
-    }
-    return data.result as T;
+  } catch {
+    throw new AnkiConnectError('unreachable', 'AnkiConnect did not answer');
   }
+  if (!response.ok) throw new AnkiConnectError('unreachable', `AnkiConnect answered ${response.status}`);
+  const data = (await response.json()) as { result: T; error: string | null };
+  if (data.error) {
+    const code = /duplicate/i.test(data.error) ? 'duplicate' : 'anki';
+    throw new AnkiConnectError(code, data.error);
+  }
+  return data.result;
+};
 
-  public getDeckNames = async (): Promise<string[]> => {
-    return this.invoke<string[]>('deckNames');
-  };
-
-  public getModelNames = async (): Promise<string[]> => {
-    return this.invoke<string[]>('modelNames');
-  };
-
-  public getModelFieldNames = async (modelName: string): Promise<string[]> => {
-    return this.invoke<string[]>('modelFieldNames', { modelName });
-  };
-
-  public findNotes = async (query: string): Promise<number[]> => {
-    return this.invoke<number[]>('findNotes', { query });
-  };
-
-  public addNote = async (note: AnkiNote): Promise<number | null> => {
-    return this.invoke<number | null>('addNote', { note });
-  };
-  
-  public getVersion = async (): Promise<number | null> => {
-    try {
-      return await this.invoke<number>('version');
-    } catch {
-      return null;
-    }
-  };
-}
+export const ankiConnect = {
+  version: (): Promise<number> => invoke<number>('version'),
+  deckNames: (): Promise<string[]> => invoke<string[]>('deckNames'),
+  modelNames: (): Promise<string[]> => invoke<string[]>('modelNames'),
+  modelFieldNames: (modelName: string): Promise<string[]> => invoke<string[]>('modelFieldNames', { modelName }),
+  /** AnkiConnect checks duplicates itself, following note.options (scope: the selected deck). */
+  addNote: (note: AnkiNote): Promise<number> => invoke<number>('addNote', { note }),
+};
