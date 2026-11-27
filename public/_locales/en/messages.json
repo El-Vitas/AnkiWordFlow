@@ -8,6 +8,7 @@
   "dictionaryUnreachable": { "message": "Cambridge could not be reached. Check your connection." },
   "noDictionary": { "message": "No dictionary is active. Turn one on in the settings." },
   "context": { "message": "Context" },
+  "showMoreMeanings": { "message": "Show $COUNT$ more meanings", "placeholders": { "count": { "content": "$1" } } },
   "close": { "message": "Close" },
   "playPronunciation": { "message": "Play the $REGION$ pronunciation and use it for the card", "placeholders": { "region": { "content": "$1" } } },
   "addToAnki": { "message": "Add to Anki" },
@@ -32,7 +33,7 @@
   "keyShift": { "message": "Shift" },
   "keyCtrl": { "message": "Ctrl" },
   "dictionary": { "message": "Dictionary" },
-  "dictionaryCambridgeEnEs": { "message": "English → Spanish (Cambridge)" },
+  "dictionaryCambridgeEnEs": { "message": "Cambridge EN → ES" },
   "ankiDeck": { "message": "Anki deck" },
 
   "settingsTitle": { "message": "AnkiWordFlow settings" },

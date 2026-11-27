@@ -8,6 +8,7 @@
   "dictionaryUnreachable": { "message": "No se pudo conectar con Cambridge. Revisa tu conexión." },
   "noDictionary": { "message": "No hay ningún diccionario activo. Activa uno en la configuración." },
   "context": { "message": "Contexto" },
+  "showMoreMeanings": { "message": "Ver $COUNT$ significados más", "placeholders": { "count": { "content": "$1" } } },
   "close": { "message": "Cerrar" },
   "playPronunciation": { "message": "Escuchar la pronunciación $REGION$ y usarla en la tarjeta", "placeholders": { "region": { "content": "$1" } } },
   "addToAnki": { "message": "Agregar a Anki" },
@@ -32,7 +33,7 @@
   "keyShift": { "message": "Shift" },
   "keyCtrl": { "message": "Ctrl" },
   "dictionary": { "message": "Diccionario" },
-  "dictionaryCambridgeEnEs": { "message": "Inglés → Español (Cambridge)" },
+  "dictionaryCambridgeEnEs": { "message": "Cambridge EN → ES" },
   "ankiDeck": { "message": "Mazo de Anki" },
 
   "settingsTitle": { "message": "Configuración de AnkiWordFlow" },

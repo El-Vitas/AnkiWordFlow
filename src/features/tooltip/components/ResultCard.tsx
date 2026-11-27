@@ -9,6 +9,7 @@ import { ankiErrorMessage } from '../frame';
 type SaveState = { phase: 'idle' } | { phase: 'saving' } | { phase: 'saved' } | { phase: 'failed'; message: string };
 
 const MAX_EXAMPLES_SHOWN = 2;
+const MAX_DEFINITIONS_SHOWN = 4;
 const MAX_CONTEXT_SHOWN = 200;
 
 const AudioButton = ({ audio, isSelected, onSelect }: { audio: DictionaryAudio; isSelected: boolean; onSelect: () => void }) => (
@@ -35,6 +36,9 @@ interface ResultCardProps {
 export const ResultCard = ({ result, lookup, settings }: ResultCardProps) => {
   const [audioUrl, setAudioUrl] = useState(result.audios.find((audio) => audio.region === 'UK')?.url ?? result.audios[0]?.url);
   const [save, setSave] = useState<SaveState>({ phase: 'idle' });
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hiddenCount = isExpanded ? 0 : Math.max(result.definitions.length - MAX_DEFINITIONS_SHOWN, 0);
+  const shownDefinitions = result.definitions.slice(0, result.definitions.length - hiddenCount);
   const canExport = settings.ankiExportMode === AnkiExportMode.AnkiConnect;
 
   const addToAnki = async () => {
@@ -60,7 +64,7 @@ export const ResultCard = ({ result, lookup, settings }: ResultCardProps) => {
       </header>
 
       <ol className="flex flex-col gap-2">
-        {result.definitions.map((definition, index) => (
+        {shownDefinitions.map((definition, index) => (
           <li key={index}>
             <p className="font-semibold text-gray-800">{definition.translation}</p>
             {definition.examples.slice(0, MAX_EXAMPLES_SHOWN).map((example, exampleIndex) => (
@@ -72,6 +76,11 @@ export const ResultCard = ({ result, lookup, settings }: ResultCardProps) => {
           </li>
         ))}
       </ol>
+      {hiddenCount > 0 && (
+        <button type="button" onClick={() => setIsExpanded(true)} className="self-start text-sm text-blue-700 hover:underline">
+          {t('showMoreMeanings', String(hiddenCount))}
+        </button>
+      )}
 
       {lookup.contextSentence && (
         <section className="pt-3 border-t border-gray-100">

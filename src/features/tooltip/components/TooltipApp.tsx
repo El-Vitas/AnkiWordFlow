@@ -40,6 +40,14 @@ export const TooltipApp = () => {
   }, []);
 
   useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') postToPage({ type: 'AWF_CLOSE' });
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, []);
+
+  useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     const observer = new ResizeObserver(() => postToPage({ type: 'AWF_RESIZE', height: Math.ceil(root.getBoundingClientRect().height) }));

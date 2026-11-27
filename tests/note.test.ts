@@ -55,6 +55,22 @@ describe('buildNote', () => {
     expect(note.fields.Link).toBe('https://dictionary.cambridge.org/dictionary/english-spanish/run?a=1&amp;b=2');
   });
 
+  it('keeps the card short: two examples of the main meaning and each translation once', () => {
+    const busy: DictionaryResult = {
+      ...result,
+      definitions: [
+        { translation: 'correr', examples: [1, 2, 3].map((index) => ({ original: `Example ${index}`, translation: index === 2 ? '' : `Ejemplo ${index}` })) },
+        { translation: 'correr', examples: [{ original: 'Other sense', translation: 'Otro sentido' }] },
+        { translation: 'dirigir', examples: [] },
+      ],
+    };
+
+    const note = buildNote(busy, '', allFields);
+
+    expect(note.fields.Examples).toBe('<ul><li>Example 1<br><i>Ejemplo 1</i></li><li>Example 2</li></ul>');
+    expect(note.fields.Meanings).toBe('correr; dirigir');
+  });
+
   it('skips data mapped to no field and fields that would be empty', () => {
     const note = buildNote(result, '', defaultSettings);
 
