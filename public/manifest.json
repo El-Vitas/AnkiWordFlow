@@ -1,56 +1,21 @@
 {
   "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "description": "__MSG_extDescription__",
+  "version": "1.1.0",
   "author": "El-Vitas",
-  "name": "Anki Word Flow",
-  "version": "1.0.0",
-  "description": "A Chrome extension to enhance Anki with word flow features.",
-  
+  "homepage_url": "https://github.com/El-Vitas/AnkiWordFlow",
+  "default_locale": "en",
+  "minimum_chrome_version": "116",
   "action": {
     "default_popup": "index.html",
-    "default_icon": {
-      "16": "awfMain.png",
-      "48": "awfMain.png"
-    }
+    "default_icon": { "16": "awfMain.png", "48": "awfMain.png" }
   },
-  "icons": {
-    "16": "awfMain.png",
-    "48": "awfMain.png",
-    "128": "awfMain.png"
-  },
-  "options_ui": {
-    "page": "options.html",
-    "open_in_tab": true
-  },
-  "background": {
-    "service_worker": "assets/background.js"
-  },
-  "permissions": [
-    "scripting",
-    "storage",
-    "contextMenus"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "assets/content.js"
-      ]
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "tooltip.html",
-        "assets/*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
-    }
-  ]
+  "icons": { "16": "awfMain.png", "48": "awfMain.png", "128": "awfMain.png" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "background": { "service_worker": "assets/background.js", "type": "module" },
+  "permissions": ["storage"],
+  "host_permissions": ["https://dictionary.cambridge.org/*", "http://127.0.0.1:8765/*"],
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["assets/content.js"] }],
+  "web_accessible_resources": [{ "resources": ["tooltip.html"], "matches": ["<all_urls>"] }]
 }

@@ -1,71 +1,42 @@
-import { useState, useEffect } from 'react';
-import { type ExtensionSettings, defaultSettings } from '../types/storage';
+import { useEffect, useState } from 'react';
+import { t } from '../lib/i18n';
+import { loadSettings } from '../lib/settings';
+import { defaultSettings, type ExtensionSettings } from '../types/storage';
 
-type SettingsUpdater = <K extends keyof ExtensionSettings>(
-  key: K,
-  value: ExtensionSettings[K]
-) => Promise<void>;
+type SettingsUpdater = <K extends keyof ExtensionSettings>(key: K, value: ExtensionSettings[K]) => Promise<void>;
 
-export function useStorage() {
+/** The extension settings, kept in sync with chrome.storage across the popup, options and tooltip. */
+export const useStorage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<ExtensionSettings>(defaultSettings);
 
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const result = await chrome.storage.local.get(defaultSettings);
-        setSettings(result as ExtensionSettings);
-      } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
-        console.error("Error al cargar la configuración:", e);
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
+    const refresh = () =>
+      loadSettings()
+        .then((loaded) => {
+          setSettings(loaded);
+          setError(null);
+        })
+        .catch(() => setError(t('settingsLoadFailed')))
+        .finally(() => setIsLoading(false));
+
+    void refresh();
+    const onChanged = (_changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local') void refresh();
     };
-
-    loadSettings();
-
-    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
-      if (areaName !== 'local') {
-        return;
-      }
-
-      const newValues = Object.entries(changes).reduce((acc, [key, { newValue }]) => {
-        if (Object.keys(defaultSettings).includes(key)) {
-          acc[key as keyof ExtensionSettings] = newValue;
-        }
-        return acc;
-      }, {} as Partial<ExtensionSettings>);
-
-      if (Object.keys(newValues).length > 0) {
-        setSettings((prevSettings) => ({ ...prevSettings, ...newValues }));
-      }
-    };
-
-    chrome.storage.onChanged.addListener(handleStorageChange);
-
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
 
   const updateSetting: SettingsUpdater = async (key, value) => {
-    setSettings((prevSettings) => ({
-      ...prevSettings,
-      [key]: value,
-    }));
-
+    setSettings((previous) => ({ ...previous, [key]: value }));
     try {
       await chrome.storage.local.set({ [key]: value });
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
-      console.error("Error al guardar la configuración:", e);
-      setError(errorMessage);
+    } catch {
+      setError(t('settingsSaveFailed'));
     }
   };
-  
 
   return { settings, updateSetting, isLoading, error };
-}
+};

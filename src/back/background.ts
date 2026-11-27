@@ -1,79 +1,53 @@
-import { AnkiConnectService } from '../lib/anki/ankiconnect';
-import type { AnkiNote } from '../types/anki';
+import { AnkiConnectError, ankiConnect } from '../lib/anki/ankiconnect';
+import type { BackgroundMessage, BackgroundResponse } from '../types/messages';
+import type { LookupRequest } from '../types/tooltip';
 
-const ankiService = new AnkiConnectService();
+/** The last selection of each tab, kept in session storage so it survives the service worker sleeping. */
+const lookupKey = (tabId: number): string => `lookup:${tabId}`;
 
-type ExtensionMessage = 
-  | { type: 'FETCH_HTML'; url: string }
-  | { type: 'ANKI_GET_VERSION' }
-  | { type: 'ANKI_GET_DECK_NAMES' }
-  | { type: 'ANKI_GET_MODEL_NAMES' }
-  | { type: 'ANKI_GET_MODEL_FIELD_NAMES'; modelName: string }
-  | { type: 'ANKI_ADD_NOTE'; note: AnkiNote };
-
-chrome.runtime.onMessage.addListener(
-  (message: ExtensionMessage, _sender, sendResponse) => {
-    if (message.type === "FETCH_HTML") {
-      const fetchHtml = async () => {
-        try {
-          const response = await fetch(message.url, {
-            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" },
-          });
-          if (!response.ok) throw new Error(`Error de red: ${response.statusText}`);
-          const html = await response.text();
-          sendResponse({ html });
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : "Error desconocido";
-          sendResponse({ error: errorMessage });
-        }
-      };
-      fetchHtml();
-      return true;
-    }
-
-    if (message.type.startsWith("ANKI_")) {
-      const handleAnkiRequest = async () => {
-        try {
-          switch (message.type) {
-            case "ANKI_GET_VERSION":
-              return await ankiService.getVersion();
-            case "ANKI_GET_DECK_NAMES":
-              return await ankiService.getDeckNames();
-            case "ANKI_GET_MODEL_NAMES":
-              return await ankiService.getModelNames();
-            case "ANKI_GET_MODEL_FIELD_NAMES":
-              return await ankiService.getModelFieldNames(message.modelName);
-            
-            case "ANKI_ADD_NOTE": {
-              const { note } = message;
-
-              if (note.options && !note.options.allowDuplicate) {
-                const firstFieldName = Object.keys(note.fields)[0];
-                const firstFieldValue = note.fields[firstFieldName];
-                
-                const query = `deck:"${note.deckName}" "${firstFieldName}:${firstFieldValue}"`;
-                
-                const duplicateNotes = await ankiService.findNotes(query);
-                
-                if (duplicateNotes.length > 0) {
-                  throw new Error('La nota ya existe en este mazo.');
-                }
-                note.options = {allowDuplicate: true};
-                return await ankiService.addNote(note as AnkiNote);
-              }
-              
-              return await ankiService.addNote(note);
-            }
-
-            default:
-              throw new Error(`Acción de Anki desconocida.`);
-          }
-        } catch (error) {
-          return { error: error instanceof Error ? error.message : "Error desconocido" };
-        }
-      };
-      handleAnkiRequest().then(sendResponse);
-      return true;
-    }
+const answer = async <T>(work: () => Promise<T>): Promise<BackgroundResponse<T>> => {
+  try {
+    return { ok: true, value: await work() };
+  } catch (error) {
+    if (error instanceof AnkiConnectError) return { ok: false, code: error.code, message: error.message };
+    return { ok: false, code: 'unknown', message: error instanceof Error ? error.message : String(error) };
   }
-);
+};
+
+const requireTab = (sender: chrome.runtime.MessageSender): number => {
+  if (sender.tab?.id === undefined) throw new Error('This message is only valid from a tab');
+  return sender.tab.id;
+};
+
+const handle = (message: BackgroundMessage, sender: chrome.runtime.MessageSender): Promise<BackgroundResponse<unknown>> => {
+  switch (message.type) {
+    case 'LOOKUP_SET':
+      return answer(() => chrome.storage.session.set({ [lookupKey(requireTab(sender))]: message.lookup }));
+    case 'LOOKUP_GET':
+      return answer(async () => {
+        const key = lookupKey(requireTab(sender));
+        const stored = await chrome.storage.session.get<Record<string, LookupRequest | undefined>>(key);
+        return stored[key] ?? null;
+      });
+    case 'ANKI_VERSION':
+      return answer(ankiConnect.version);
+    case 'ANKI_DECK_NAMES':
+      return answer(ankiConnect.deckNames);
+    case 'ANKI_MODEL_NAMES':
+      return answer(ankiConnect.modelNames);
+    case 'ANKI_MODEL_FIELD_NAMES':
+      return answer(() => ankiConnect.modelFieldNames(message.modelName));
+    case 'ANKI_ADD_NOTE':
+      return answer(() => ankiConnect.addNote(message.note));
+  }
+};
+
+chrome.runtime.onMessage.addListener((message: BackgroundMessage, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) return false;
+  void handle(message, sender).then(sendResponse);
+  return true;
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  void chrome.storage.session.remove(lookupKey(tabId));
+});

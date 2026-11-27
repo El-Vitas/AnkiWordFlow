@@ -1,19 +1,21 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+
+/**
+ * The extension pages (popup, options, tooltip) and the background service worker, which Chrome loads as ES
+ * modules and can share chunks. The content script is built apart by vite.content.config.ts.
+ */
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-  ],
-build: {
+  plugins: [react(), tailwindcss()],
+  build: {
     outDir: 'dist',
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         main: 'index.html',
         options: 'options.html',
         tooltip: 'tooltip.html',
-        content: 'src/content.ts',
         background: 'src/back/background.ts',
       },
       output: {

@@ -1,116 +1,115 @@
-import React, { useState, useEffect } from 'react';
-import { useStorage } from '../../../hooks/useStorage';
+import { useState } from 'react';
 import { Select } from '../../../common/components/Select';
-import { AnkiExportMode, type ExtensionSettings } from '../../../types/storage';
+import { Toggle } from '../../../common/components/Toggle';
+import { useStorage } from '../../../hooks/useStorage';
+import { t } from '../../../lib/i18n';
 import type { AnkiFieldMappings } from '../../../types/anki';
+import { AnkiExportMode, type ExtensionSettings } from '../../../types/storage';
+import { useAnkiCollection, useModelFields } from '../hooks/useAnkiCollection';
 
 interface AnkiConnectSettingsProps {
   onSettingsChange: () => void;
 }
 
-export const AnkiConnectSettings: React.FC<AnkiConnectSettingsProps> = ({ onSettingsChange }) => {
-  const { settings, updateSetting, isLoading: isLoadingSettings } = useStorage();
+/** The order and label of each mappable piece of data in the settings. */
+const MAPPING_LABELS: Record<keyof AnkiFieldMappings, string> = {
+  expression: 'fieldExpression',
+  pronunciation: 'fieldPronunciation',
+  definition: 'fieldDefinition',
+  definitions: 'fieldDefinitions',
+  examples: 'fieldExamples',
+  note: 'fieldContext',
+  extraInfo: 'fieldPartOfSpeech',
+  url: 'fieldUrl',
+  audio: 'fieldAudio',
+};
 
-  const [ankiDecks, setAnkiDecks] = useState<string[]>([]);
-  const [ankiModels, setAnkiModels] = useState<string[]>([]);
-  const [ankiFields, setAnkiFields] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [ankiVersion, setAnkiVersion] = useState<number | null>(null);
+const parseTags = (text: string): string[] =>
+  text
+    .split(/[\s,]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 
-  const handleChange = <K extends keyof ExtensionSettings>(key: K, value: ExtensionSettings[K]) => {
-    updateSetting(key, value);
+export const AnkiConnectSettings = ({ onSettingsChange }: AnkiConnectSettingsProps) => {
+  const { settings, updateSetting, isLoading } = useStorage();
+  const isExporting = !isLoading && settings.ankiExportMode === AnkiExportMode.AnkiConnect;
+  const anki = useAnkiCollection(isExporting);
+  const fields = useModelFields(settings.selectedAnkiModel, anki.phase === 'ready');
+  const [tagsDraft, setTagsDraft] = useState<string | null>(null);
+
+  if (isLoading) return <p className="text-sm text-gray-500">{t('loading')}</p>;
+
+  const change = <K extends keyof ExtensionSettings>(key: K, value: ExtensionSettings[K]) => {
+    void updateSetting(key, value);
     onSettingsChange();
   };
-
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      if (settings.ankiExportMode !== AnkiExportMode.AnkiConnect) return;
-      try {
-        const [versionRes, decksRes, modelsRes] = await Promise.all([
-          chrome.runtime.sendMessage({ type: 'ANKI_GET_VERSION' }),
-          chrome.runtime.sendMessage({ type: 'ANKI_GET_DECK_NAMES' }),
-          chrome.runtime.sendMessage({ type: 'ANKI_GET_MODEL_NAMES' }),
-        ]);
-
-        if (versionRes?.error) throw new Error(versionRes.error);
-        setAnkiVersion(versionRes);
-
-        if (decksRes?.error) throw new Error(decksRes.error);
-        setAnkiDecks(decksRes);
-
-        if (modelsRes?.error) throw new Error(modelsRes.error);
-        setAnkiModels(modelsRes);
-        setError(null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al conectar con Anki.');
-      }
-    };
-    fetchInitialData();
-  }, [settings.ankiExportMode]);
-
-  useEffect(() => {
-    if (!settings.selectedAnkiModel || settings.ankiExportMode !== AnkiExportMode.AnkiConnect) return;
-    
-    const fetchFieldNames = async () => {
-      try {
-        const fieldsRes = await chrome.runtime.sendMessage({
-          type: 'ANKI_GET_MODEL_FIELD_NAMES',
-          modelName: settings.selectedAnkiModel,
-        });
-        if (fieldsRes.error) throw new Error(fieldsRes.error);
-        setAnkiFields(fieldsRes);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al obtener campos.');
-      }
-    };
-    fetchFieldNames();
-  }, [settings.selectedAnkiModel, settings.ankiExportMode]);
-
-  const handleMappingChange = (fieldToMap: keyof AnkiFieldMappings, ankiField: string) => {
-    const newMappings = {
-      ...settings.ankiFieldMappings,
-      [fieldToMap]: ankiField,
-    };
-    handleChange('ankiFieldMappings', newMappings);
-  };
-
-  if (isLoadingSettings) return <div>Cargando configuración...</div>;
-
-  const fieldOptions = ankiFields.map(f => ({ value: f, label: f }));
-  const ankiFieldMappingKeys = Object.keys(settings.ankiFieldMappings) as (keyof AnkiFieldMappings)[];
+  const fieldOptions = fields.map((field) => ({ value: field, label: field }));
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-4 items-center p-3 bg-gray-50 rounded-md border">
-        <Select label="Data Export" options={Object.values(AnkiExportMode).map(m => ({ value: m, label: m }))} value={settings.ankiExportMode} onChange={val => handleChange('ankiExportMode', val as AnkiExportMode)} />
-        {settings.ankiExportMode === AnkiExportMode.AnkiConnect && (
-          <div className={`col-span-2 text-sm font-semibold ${error ? 'text-red-500' : 'text-green-600'}`}>
-            {error ? `Error: ${error}` : `Conectado: ver ${ankiVersion}`}
-          </div>
+      <div className="p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">
+        <Toggle
+          label={t('exportToAnki')}
+          checked={isExporting}
+          onChange={(enabled) => change('ankiExportMode', enabled ? AnkiExportMode.AnkiConnect : AnkiExportMode.None)}
+        />
+        {isExporting && (
+          <p role="status" className={`text-sm font-semibold ${anki.phase === 'error' ? 'text-red-600' : anki.phase === 'ready' ? 'text-green-700' : 'text-gray-500'}`}>
+            {anki.phase === 'loading' && t('connecting')}
+            {anki.phase === 'error' && anki.message}
+            {anki.phase === 'ready' && t('connected', String(anki.collection.version))}
+          </p>
         )}
       </div>
 
-      {settings.ankiExportMode === AnkiExportMode.AnkiConnect && !error && (
-        <div className="mt-4 space-y-6">
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-3 bg-gray-50 rounded-md border">
-            <Select label="Sel. Mazo" options={ankiDecks.map(d => ({ value: d, label: d }))} value={settings.selectedDeck} onChange={val => handleChange('selectedDeck', val)} />
-            <Select label="Formato" options={ankiModels.map(m => ({ value: m, label: m }))} value={settings.selectedAnkiModel} onChange={val => handleChange('selectedAnkiModel', val)} />
+      {anki.phase === 'ready' && isExporting && (
+        <>
+          <div className="grid gap-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+            <Select
+              label={t('ankiDeck')}
+              options={anki.collection.decks.map((deck) => ({ value: deck, label: deck }))}
+              value={settings.selectedDeck}
+              onChange={(value) => change('selectedDeck', value)}
+            />
+            <Select
+              label={t('noteType')}
+              options={anki.collection.models.map((model) => ({ value: model, label: model }))}
+              value={settings.selectedAnkiModel}
+              onChange={(value) => change('selectedAnkiModel', value)}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-3 bg-gray-50 rounded-md border">
-            {ankiFieldMappingKeys.map(key => (
-              <Select key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} options={fieldOptions} value={settings.ankiFieldMappings[key]} onChange={val => handleMappingChange(key, val)} />
+          <fieldset className="grid gap-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+            <legend className="px-1 text-sm font-semibold text-gray-700">{t('fieldMappings')}</legend>
+            {(Object.keys(MAPPING_LABELS) as (keyof AnkiFieldMappings)[]).map((key) => (
+              <Select
+                key={key}
+                label={t(MAPPING_LABELS[key])}
+                options={fieldOptions}
+                emptyLabel={t('fieldNone')}
+                value={settings.ankiFieldMappings[key]}
+                onChange={(value) => change('ankiFieldMappings', { ...settings.ankiFieldMappings, [key]: value })}
+              />
             ))}
-          </div>
+          </fieldset>
 
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-3 bg-gray-50 rounded-md border">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Note Tags</label>
-              <input type="text" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" value={settings.ankiTags.join(', ')} onChange={e => handleChange('ankiTags', e.target.value.split(',').map(tag => tag.trim()))} />
-            </div>
-            <Select label="Tarj. duplicada" options={[{ value: 'true', label: 'Permitido' }, { value: 'false', label: 'No permitido' }]} value={String(settings.ankiAllowDuplicates)} onChange={val => handleChange('ankiAllowDuplicates', val === 'true')} />
+          <div className="grid gap-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+            <label className="flex items-center justify-between gap-4 text-sm text-gray-700">
+              {t('noteTags')}
+              <input
+                type="text"
+                className="w-44 px-2 py-1 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={tagsDraft ?? settings.ankiTags.join(' ')}
+                onChange={(event) => setTagsDraft(event.target.value)}
+                onBlur={() => {
+                  if (tagsDraft !== null) change('ankiTags', parseTags(tagsDraft));
+                  setTagsDraft(null);
+                }}
+              />
+            </label>
+            <Toggle label={t('allowDuplicates')} checked={settings.ankiAllowDuplicates} onChange={(value) => change('ankiAllowDuplicates', value)} />
           </div>
-        </div>
+        </>
       )}
     </div>
   );

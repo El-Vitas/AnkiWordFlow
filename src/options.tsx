@@ -1,10 +1,13 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { OptionsView } from './views/OptionsView';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import './index.css';
+import { OptionsLayout } from './widgets/OptionsLayout';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <OptionsView />
-  </React.StrictMode>
-);
+const container = document.getElementById('root');
+if (container) {
+  createRoot(container).render(
+    <StrictMode>
+      <OptionsLayout />
+    </StrictMode>,
+  );
+}
