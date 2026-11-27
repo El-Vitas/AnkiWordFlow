@@ -1,4 +1,4 @@
-// Define todos los campos que el usuario puede mapear desde la UI
+/** Which Anki field receives each piece of data the extension collects. An empty string skips it. */
 export interface AnkiFieldMappings {
   expression: string;
   pronunciation: string;
@@ -8,31 +8,28 @@ export interface AnkiFieldMappings {
   extraInfo: string;
   url: string;
   audio: string;
-  picture: string;
+  examples: string;
+}
+
+export interface AnkiMedia {
+  url: string;
+  filename: string;
+  fields: string[];
 }
 
 export interface AnkiNote {
   deckName: string;
   modelName: string;
-  fields: { [key: string]: string };
-  options?: {
+  fields: Record<string, string>;
+  options: {
     allowDuplicate: boolean;
-    duplicateScope?: "deck" | "collection";
-    duplicateScopeOptions?: {
-      deckName?: string;
-      checkChildren?: boolean;
-      checkAllModels?: false
+    duplicateScope: 'deck' | 'collection';
+    duplicateScopeOptions: {
+      deckName: string;
+      checkChildren: boolean;
+      checkAllModels: boolean;
     };
   };
-  audio?: {
-    url: string;
-    filename: string;
-    fields: string[];
-  }[];
-  picture?: {
-    url: string;
-    filename: string;
-    fields: string[];
-  }[];
+  audio?: AnkiMedia[];
   tags: string[];
 }

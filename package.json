@@ -1,13 +1,15 @@
 {
   "name": "ankiwordflow",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && vite build --config vite.content.config.ts",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "test": "vitest run",
+    "check": "npm run lint && tsc -b && npm test",
+    "package": "npm run build && node scripts/package.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.5",

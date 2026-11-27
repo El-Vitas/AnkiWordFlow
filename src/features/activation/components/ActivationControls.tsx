@@ -1,47 +1,45 @@
-import React from 'react';
-import { Toggle } from '../../../common/components/Toggle';
 import { Select } from '../../../common/components/Select';
+import { Toggle } from '../../../common/components/Toggle';
 import { useStorage } from '../../../hooks/useStorage';
+import { t } from '../../../lib/i18n';
 import { AutoSelectKey, type ExtensionSettings } from '../../../types/storage';
 
 interface ActivationControlsProps {
   onSettingsChange?: () => void;
 }
 
-const keyOptions = Object.values(AutoSelectKey).map(key => ({ 
-  value: key, 
-  label: key.charAt(0).toUpperCase() + key.slice(1) 
-}));
+const KEY_LABELS: Record<AutoSelectKey, string> = {
+  off: 'keyOff',
+  alt: 'keyAlt',
+  shift: 'keyShift',
+  ctrl: 'keyCtrl',
+};
 
-export const ActivationControls: React.FC<ActivationControlsProps> = ({ onSettingsChange }) => {
+export const ActivationControls = ({ onSettingsChange }: ActivationControlsProps) => {
   const { settings, updateSetting, isLoading, error } = useStorage();
 
-  if (isLoading) return <div>Cargando...</div>;
-  if (error) return <div className="text-red-500">Error: {error}</div>;
+  if (isLoading) return <p className="text-sm text-gray-500">{t('loading')}</p>;
+  if (error) return <p className="text-sm text-red-600">{error}</p>;
 
-  const handleChange = <K extends keyof ExtensionSettings>(key: K, value: ExtensionSettings[K]) => {
-    updateSetting(key, value);
-    onSettingsChange?.(); 
+  const change = <K extends keyof ExtensionSettings>(key: K, value: ExtensionSettings[K]) => {
+    void updateSetting(key, value);
+    onSettingsChange?.();
   };
 
   return (
     <div className="p-4 bg-white rounded-lg border border-gray-200 space-y-4">
-      <Toggle 
-        label="Activar Extensión" 
-        checked={settings.isExtensionActive} 
-        onChange={(value) => handleChange('isExtensionActive', value)} 
-      />
-      <Toggle 
-        label="Selección con Mouse" 
-        checked={settings.isMouseSelectionActive} 
-        onChange={(value) => handleChange('isMouseSelectionActive', value)} 
+      <Toggle label={t('extensionActive')} checked={settings.isExtensionActive} onChange={(value) => change('isExtensionActive', value)} />
+      <Toggle
+        label={t('lookUpOnSelection')}
+        checked={settings.isMouseSelectionActive}
+        onChange={(value) => change('isMouseSelectionActive', value)}
       />
       <hr className="border-gray-200" />
-      <Select 
-        label="AutoSel. con tecla" 
-        options={keyOptions} 
-        value={settings.autoSelectKey} 
-        onChange={(value) => handleChange('autoSelectKey', value as AutoSelectKey)} 
+      <Select
+        label={t('lookUpWordUnderMouse')}
+        options={Object.values(AutoSelectKey).map((key) => ({ value: key, label: t(KEY_LABELS[key]) }))}
+        value={settings.autoSelectKey}
+        onChange={(value) => change('autoSelectKey', value as AutoSelectKey)}
       />
     </div>
   );

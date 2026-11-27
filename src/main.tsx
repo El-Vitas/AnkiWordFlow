@@ -1,10 +1,13 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import PopupView from './PopupView'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import { ToolbarPopup } from './widgets/ToolbarPopup';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <PopupView />
-  </StrictMode>,
-)
+const container = document.getElementById('root');
+if (container) {
+  createRoot(container).render(
+    <StrictMode>
+      <ToolbarPopup />
+    </StrictMode>,
+  );
+}
