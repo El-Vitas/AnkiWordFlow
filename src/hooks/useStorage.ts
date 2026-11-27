@@ -14,8 +14,8 @@ export function useStorage() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const result = await chrome.storage.local.get(defaultSettings);
-        setSettings(result as ExtensionSettings);
+        const result = await chrome.storage.local.get<ExtensionSettings>(defaultSettings);
+        setSettings(result);
       } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
         console.error("Error al cargar la configuración:", e);
@@ -32,12 +32,11 @@ export function useStorage() {
         return;
       }
 
-      const newValues = Object.entries(changes).reduce((acc, [key, { newValue }]) => {
-        if (Object.keys(defaultSettings).includes(key)) {
-          acc[key as keyof ExtensionSettings] = newValue;
-        }
-        return acc;
-      }, {} as Partial<ExtensionSettings>);
+      const newValues: Partial<ExtensionSettings> = Object.fromEntries(
+        Object.entries(changes)
+          .filter(([key]) => key in defaultSettings)
+          .map(([key, { newValue }]) => [key, newValue]),
+      );
 
       if (Object.keys(newValues).length > 0) {
         setSettings((prevSettings) => ({ ...prevSettings, ...newValues }));
